@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block title %}
+    <title>首页</title>
+    {% endblock title %}
+    <!-- sweetalert -->
+    <link rel="stylesheet" href="/static/sweetalert/sweetalert.css">
+    <script src="/static/sweetalert/sweetalert.min.js"></script>
+
+    <!-- Bootstrap-3.3.7 jQuery-3.6.0 -->
+    <link rel="stylesheet" type="text/css" href="/static/Bootstrap-3.3.7/css/bootstrap.css"/>
+    <script type="text/javascript" src="/static/jQuery-3.6.0/jquery-3.6.0.js"></script>
+    <script type="text/javascript" src="/static/Bootstrap-3.3.7/js/bootstrap.js"></script>
+
+    {% block css-js %}
+    <!-- echarts-4.3.0 饼状图 -->
+    <script src="/static/echarts/echarts.min.js"></script>
+    {% endblock css-js %}
+
+</head>
+<body>
+<nav class="navbar navbar-default">
+  <div class="container-fluid">
+      <!-- Brand and toggle get grouped for better mobile display -->
+      <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/device/">NDGv1.3</a>
+      </div>
+  
+      <!-- Collect the nav links, forms, and other content for toggling -->
+      <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+      <ul class="nav navbar-nav">
+          <li><a href="/device/">首页 <span class="sr-only">(current)</span></a></li>
+          <li><a href="/device/data/">设备管理</a></li>
+          <li><a href="/scheduler/">计划任务</a></li>
+          {% comment %} <li><a href="#">自动化</a></li> {% endcomment %}
+          <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">更多操作 <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+              <li class="text-center"><a href="#" class="btn btn-cancel" data-toggle="modal" data-target="#myModal">批量导入</a></li>
+              {% comment %} <li class="text-center" onclick="sync_anything()"><a href="#">同步数据</a></li> {% endcomment %}
+              <li class="text-center" onclick="del_anything()"><a href="#" >清空数据</a></li>
+              <li class="text-center"><a href="#">查看日志</a></li>
+          </ul>
+          </li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+          <li>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false" onclick="about_swal()">关于 <span class="caret"></span></a>
+          </li>
+       </ul>
+      </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+   </nav>
+  </div>
+  <!-- Modal -->
+  <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="myModalLabel">导入数据</h4>
+        </div>
+        <div class="modal-body">
+          <input type="file" id="file" value="选择文件">
+        </div>
+        <div class="modal-footer">
+          <a href="/device/template_download/">Download Template</a>
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          <button type="button" id="upload_file" class="btn btn-primary">Upload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-12">
+      {% block content%}
+        <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">概览</h3>
+        </div>
+        <div class="panel-body">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-2">
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                              <span class="badge">{{ device_network_count }}</span>
+                              网络设备
+                            </li>
+                          </ul>
+                    </div>
+                    <div class="col-md-2">
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                              <span class="badge">{{ device_sec_count }}</span>
+                              安全设备
+                            </li>
+                          </ul>
+                    </div>
+                    {% comment %} <div class="col-md-2">
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                              <span class="badge">{{ device_count_server }}</span>
+                              服务器
+                            </li>
+                          </ul>
+                    </div> {% endcomment %}
+                    <div class="col-md-2">
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                              <span class="badge">{{ device_count_other }}</span>
+                              其他
+                            </li>
+                          </ul>
+                    </div>
+                </div>
+              </div>
+            </div>
+            <div class="container-fluid">
+              <div class="row">
+                  <div class="col-md-4">
+                      <div class="panel panel-default">
+                          <div class="panel-heading">
+                            <h3 class="panel-title">设备监控概览</h3>
+                          </div>
+                          <div class="panel-body">
+                            <div id="device_health" style="width: 100%;height:400px;"></div>
+                            <script type="text/javascript">
+                              // 初始化 echarts 实例
+                              var myChart = echarts.init(document.getElementById('device_health'));
+                      
+                              myChart.setOption({
+                                tooltip: {
+                                  trigger: 'item'
+                                },
+                              legend: {
+                                      orient: 'vertical',
+                                      left: 'left'
+                                    },
+                              title: {
+                                text: '设备总数',
+                                subtext: {{ device_health_all }},
+                                x: 'center',
+                                y: 'center',
+                                textStyle: {
+                                        fontWeight: 'normal',
+                                        fontSize: 25,
+                                        color: '#0059b3'
+                                    }, // 标题
+                                subtextStyle: {
+                                        fontWeight: 'normal',
+                                        fontSize: 28,
+                                        color: '#0059b3'
+                                    } // 副标题
+                              },
+                                series : [{
+                                        name: '设备监控概览',
+                                        type: 'pie',    // 设置图表类型为饼图
+                                        radius: ['36%', '52%'],  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                        label: {
+                                          position: 'outside',
+                                          formatter: '{b}: {c}\n({d}%)',
+                                          fontSize: 15
+                                        },
+                                        color: ['#0076cd', '#6f6f6f'],
+                                        data:[          // 数据数组，name 为数据项名称，value 为数据项值
+                                            {name:'在线', value:{{ device_health_online }}},
+                                            {name:'离线', value:{{ device_health_offline }}},
+                                        ]}
+                                ]
+                              })
+                          </script>
+                          </div>
+                        </div>
+                  </div>
+                  <div class="col-md-4">
+                      <div class="panel panel-default">
+                          <div class="panel-heading">
+                            <h3 class="panel-title">CPU利用率概览</h3>
+                          </div>
+                          <div class="panel-body">
+                            <div id="device_cpu_health" style="width: 100%;height:400px;"></div>
+                            <script type="text/javascript">
+                              // 初始化 echarts 实例
+                              var myChart = echarts.init(document.getElementById('device_cpu_health'));
+                              myChart.setOption({
+                                tooltip: {
+                                  trigger: 'item'
+                                },
+                              legend: {
+                                      orient: 'vertical',
+                                      left: 'left'
+                                    },      
+                              series : [{
+                                      name: 'CPU利用率概览',
+                                      type: 'pie',    // 设置图表类型为饼图
+                                      radius: ['36%', '52%'],  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                      label: {
+                                        position: 'outside',
+                                        formatter: '{b}: {c}\n({d}%)',
+                                        fontSize: 15
+                                      },
+                                      color: ['#0076cd', '#1a8bff', '#6f6f6f'],
+                                      data:[          // 数据数组，name 为数据项名称，value 为数据项值
+                                          {name:'低于33%', value:{{ device_cpu_low }}},
+                                          {name:'33%-66%', value:{{ device_cpu_middle }}},
+                                          {name:'高于66%', value:{{ device_cpu_high }}},
+                                      ]}
+                                ]
+                              })
+                          </script>
+                          </div>
+                        </div>
+                  </div>
+                  <div class="col-md-4">
+                      <div class="panel panel-default">
+                          <div class="panel-heading">
+                            <h3 class="panel-title">内存利用率概览</h3>
+                          </div>
+                          <div class="panel-body">
+                            <div id="device_mem_health" style="width: 100%;height:400px;"></div>
+                            <script type="text/javascript">
+                              // 初始化 echarts 实例
+                              var myChart = echarts.init(document.getElementById('device_mem_health'));
+                              myChart.setOption({
+                                tooltip: {
+                                  trigger: 'item'
+                                },
+                              legend: {
+                                      orient: 'vertical',
+                                      left: 'left'
+                                    },
+                              series : [{
+                                      name: 'Mem利用率概览',
+                                      type: 'pie',    // 设置图表类型为饼图
+                                      radius: ['36%', '52%'],  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                                      label: {
+                                        position: 'outside',
+                                        formatter: '{b}: {c}\n({d}%)',
+                                        fontSize: 15
+                                      },
+                                      color: ['#0076cd', '#1a8bff', '#6f6f6f'],
+                                      data:[          // 数据数组，name 为数据项名称，value 为数据项值
+                                          {name:'低于33%', value:{{ device_mem_low }}},
+                                          {name:'33%-66%', value:{{ device_mem_middle }}},
+                                          {name:'高于66%', value:{{ device_mem_high }}},
+                                      ]}
+                                ]
+                              })
+                          </script>
+                          </div>
+                        </div>
+                  </div>
+              </div>
+            </div>
+            <div class="container-fluid">
+              <div class="row">
+                  <div class="col-md-6">
+                      <div class="panel panel-default">
+                          <div class="panel-heading">
+                            <h3 class="panel-title">Top10 CPU利用率</h3>
+                          </div>
+                          <div class="panel-body">
+                            <table class="table">
+                              <thead>
+                                <tr>
+                                  <th>序号</th>
+                                  <th>设备名称</th>
+                                  <th>CPU利用率</th>
+                                  <th>设备管理IP</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for device_cpu_obj in device_cpu_orderby %}
+                                <tr>
+                                  <td>{{ forloop.counter }}</td>
+                                  <td>{{ device_cpu_obj.device.sysname }}</td>
+                                  <td>
+                                    {% if  device_cpu_obj.device_cpu  == None %}None
+                                    {% else %}{{ device_cpu_obj.device_cpu }}%
+                                    {% endif %}
+                                  </td>
+                                  <td>{{ device_cpu_obj.mgmt_ip }}</td>
+                                </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                  </div>
+                  <div class="col-md-6">
+                      <div class="panel panel-default">
+                          <div class="panel-heading">
+                            <h3 class="panel-title">Top10 内存利用率</h3>
+                          </div>
+                          <div class="panel-body">
+                            <table class="table">
+                              <thead>
+                                <tr>
+                                  <th>序号</th>
+                                  <th>设备名称</th>
+                                  <th>内存利用率</th>
+                                  <th>设备管理IP</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {% for device_mem_obj in device_mem_orderby %}
+                                <tr>
+                                  <td>{{ forloop.counter }}</td>
+                                  <td>{{ device_mem_obj.device.sysname }}</td>
+                                  <td>
+                                    {% if  device_mem_obj.device_mem  == None %}None
+                                    {% else %}{{ device_mem_obj.device_mem }}%
+                                    {% endif %}
+                                  </td>
+                                  <td>{{ device_mem_obj.mgmt_ip }}</td>
+                                </tr>
+                                {% endfor %}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endblock %}
+    </div> 
+  </div>
+</div>
+<script>
+  // 文件上传处理
+  $(function () {
+      $('#upload_file').click(function () {
+        
+          //ajax上传文件必须通过FormData对象传输数据
+          var formdata = new FormData();
+
+          //获取上传文件对象(文件句柄)：定位对象，转成DOM对象，取值(文件对象列表)
+          var file = $('#file')[0].files[0];
+
+          // 判断是否选择了文件
+          if(file){
+            swal({
+              title: "Processing...",
+              //text: "Please wait",
+              //imageUrl: "https://www.superiorlawncareusa.com/wp-content/uploads/2020/05/loading-gif-png-5.gif",
+              imageUrl: "https://s2.loli.net/2022/10/05/YbRodfG5qHQAz6t.gif",
+              //imageUrl: "http://localhost:8000/static/img/loading.gif",
+              //icon: "/loading.gif",
+              button: false,
+              showConfirmButton: false,
+              closeOnClickOutside: false,
+              closeOnEsc: false
+            });
+          }else{
+            //alert('Please chose a File.');
+            swal("上传错误！", "未选择文件！", "error");
+            return
+          }
+
+          formdata.append('file', file);
+
+          $.ajax({
+              url: "/device/upload/",
+              type: 'post',
+              data: formdata,
+              processData: false,//不处理数据
+              contentType: false,//不设置内容类型，按原格式传输
+              success: function (res) {
+                location.reload();
+                alert(res.res1);
+                alert(res.res2);
+              }
+          })
+      })
+  })
+</script>
+<script>
+  // 同步所有
+  function sync_anything(){
+    swal({
+      title: "Are you sure?",
+      text: "This will take a few minutes.",
+      type: "warning",
+      showCancelButton: true,  // 是否显示取消按钮
+      confirmButtonClass: "btn-danger",  // 确认按钮的样式类
+      confirmButtonText: "Yes, do it.",  // 确认按钮文本
+      cancelButtonText: "Cancel",  // 取消按钮文本
+      closeOnConfirm: false,  // 点击确认按钮不关闭弹框
+      showLoaderOnConfirm: true,  // 显示正在删除的动画效果
+      closeOnEsc: false,
+      closeOnClickOutside: false,
+    },
+      function()
+      {
+        $.ajax({
+          url: "/device/sync_anything/",
+          type: "get",
+          success: function (data) {
+            if (data.status_code === 1111) {
+              swal("Synchronized!", "Data has been Synchronized.", "success");
+              location.reload(); //同步成功后，重载当前页面
+              //ajax.reload();
+            } else {
+                swal("Error!", "An error occurred.", "error")
+            }
+          }
+        })
+      }
+      )
+  }
+</script>
+<script>
+  // 清空数据
+  function del_anything(){
+    swal({
+      title: "Are you sure?",
+      text: "Your will not be able to recover that!",
+      type: "warning",
+      showCancelButton: true,  // 是否显示取消按钮
+      confirmButtonClass: "btn-danger",  // 确认按钮的样式类
+      confirmButtonText: "Yes, delete it!",  // 确认按钮文本
+      cancelButtonText: "Cancel",  // 取消按钮文本
+      closeOnConfirm: false,  // 点击确认按钮不关闭弹框
+      showLoaderOnConfirm: true  // 显示正在删除的动画效果
+    },
+      function()
+      {
+        $.ajax({
+          url: "/device/del_anything/",
+          type: "post",
+          success: function (data) {
+              if (data.status_code === 1111) {
+                  swal("Deleted!", "Data has been deleted.", "success");
+                  location.reload(); //删除成功后，重载当前页面
+                  //ajax.reload();
+              } else {
+                  swal("Error!", "An error occurred.", "error")
+              }
+          }
+        })
+      }
+      )
+  }
+</script>
+<script>
+  // 关于 弹窗信息 about_swal()
+  function about_swal(){
+    var info_str = "这是一个基于Bootstrap-3.3.7+Django4.0.7+MySql-5.7.39（可sqlite）编写的简易网络设备展示小破系统\n有些部分写的比较简陋，凑合着看";
+    swal("NDGv1.3_beta", info_str, "info");
+    //swal("add title Text")
+  }
+
+</script>
+{% block script %}
+{% endblock script %}
+</body>
+</html>
