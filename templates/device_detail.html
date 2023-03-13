@@ -1,0 +1,229 @@
+{% extends 'home.html' %}
+{% block title %}
+<title>设备详情</title>
+{% endblock title %}
+{% block css-js %}
+<style>
+    div.sweet-alert h2 {
+        padding-top: 18px;
+    }
+</style>
+{% endblock css-js %}
+{% block content %}
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">设备详情</h3>
+  </div>
+  <div class="panel-body">
+    
+ 
+  <div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6">
+          {% for device_obj in device_queryset %}
+            <ul class="list-group">
+              <li class="list-group-item">设备名称：{{ device_obj.sysname }}</li>
+              <li class="list-group-item">设备别名：{{ device_obj.device_detail.device_alias }}</li>
+              <li class="list-group-item" id="curr_ip" value={{ device_obj.mgmt_ip }}>管理地址：{{ device_obj.mgmt_ip }}</li>
+              <li class="list-group-item">网络区域：{{ device_obj.device_detail.net_area }}</li>
+              <li class="list-group-item">设备类型：{{ device_obj.device_detail.device_type }}</li>
+              <li class="list-group-item">设备型号：{{ device_obj.device_detail.device_model }}</li>
+              <li class="list-group-item">设备软件版本：{{ device_obj.device_detail.device_version }}</li>
+              <li class="list-group-item">设备序列号：{{ device_obj.device_detail.device_sn }}</li>
+              <li class="list-group-item">设备在线时间：{{ device_obj.device_detail.device_uptime }}</li>
+              <li class="list-group-item">设备电源：
+                {% if  device_obj.device_detail.device_power_state  == 1 %}正常
+                {% elif  device_obj.device_detail.device_power_state  == 2 %}不正常
+                {% elif  device_obj.device_detail.device_power_state  == 3 %}未插入电源
+                {% elif  device_obj.device_detail.device_power_state  == 4 %}不支持的电源
+                {% else %}未知状态
+                {% endif %}
+              </li>
+              <li class="list-group-item">设备风扇：
+                {% if  device_obj.device_detail.device_fan_state  == 1 %}正常
+                {% elif  device_obj.device_detail.device_fan_state  == 2 %}不正常
+                {% elif  device_obj.device_detail.device_fan_state  == 3 %}未插入风扇
+                {% elif  device_obj.device_detail.device_fan_state  == 4 %}不支持的风扇或设备无风扇
+                {% else %}未知状态
+                {% endif %}
+              </li>
+              <li class="list-group-item">设备温度：
+                {% if device_obj.device_detail.device_temperature != 'null' %}
+                {{ device_obj.device_detail.device_temperature }}℃
+                {% else %}
+                -/-
+                {% endif %}
+              </li>
+              <li class="list-group-item">设备SNMP可达性：{{ device_obj.device_state.snmp_state }}</li>
+              <li class="list-group-item">设备ICMP可达性：{{ device_obj.device_state.icmp_state }}</li>
+              <li class="list-group-item">设备当前CPU利用率：
+                {% if device_obj.device_detail.device_cpu != 'null' %}
+                {{ device_obj.device_detail.device_cpu }}%
+                {% else %}
+                -/-
+                {% endif %}
+              </li>
+              <li class="list-group-item">设备当前内存利用率：
+                {% if device_obj.device_detail.device_mem != 'null' %}
+                {{ device_obj.device_detail.device_mem }}%
+                {% else %}
+                -/-
+                {% endif %}
+              </li>
+              <li class="list-group-item">设备位置：{{ device_obj.device_location.device_location }}</li>
+              <li class="list-group-item">添加时间：{{ device_obj.device_detail.add_time|date:"Y-m-d H:i:s" }}</li>
+              <li class="list-group-item">上一次同步时间：{{ device_obj.device_detail.last_sync_time|date:"Y-m-d H:i:s" }}</li>
+            </ul>
+            <a href="/device/data/" class="btn btn-primary btn-sm">返回 </a>
+            <button class="btn btn-primary btn-sm" onClick="device_sync({{ device_obj.pk }})">刷新</button><span> 查看设备最新实时状态请点击 <刷新> 按钮（例如CPU利用率、内存利用率、运行时间等）</span>
+            
+            <br>
+            <br>
+          {% endfor %}
+          </div>
+          <div class="col-md-6">
+            <div class="text-right">
+              <select id="cmd_select" class="form-select" aria-label=".form-select-lg example">
+                <option selected>选择查看命令</option>
+                <option value="dis cur">查看当前配置</option>
+                <option value="dis int brief">查看接口状态</option>
+                <option value="dis ip int brief">查看接口地址</option>
+                <option value="dis ip routing-table">查看IPv4路由表</option>
+                <option value="dis version">查看运行版本</option>
+                <option value="dis dev man ">查看硬件信息</option>
+                </select>
+              <button class="btn btn-primary btn-sm" id="do_exec">执行</button>
+              <button id="s_login" type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#myModal-2">
+                登陆
+              </button>
+              <!-- Modal -->
+              <div class="modal fade text-left" id="myModal-2" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+                <div class="modal-dialog" role="document">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                      <h4 class="modal-title" id="myModalLabel">Login</h4>
+                    </div>
+                    <div class="modal-body">
+                      <form class="form-horizontal">
+                        <div class="form-group">
+                          <label for="inputEmail3" class="col-sm-2 control-label">Username</label>
+                          <div class="col-sm-10">
+                            <input type="email" class="form-control" id="input_username" placeholder="Username">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <label for="inputPassword3" class="col-sm-2 control-label">Password</label>
+                          <div class="col-sm-10">
+                            <input type="password" class="form-control" id="input_password" placeholder="Password">
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                      <button id="d_login" type="button" class="btn btn-primary">Sign in</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <br>
+              <br>
+            </div>
+            <div>
+              <textarea id="display_res" class="form-control" rows="35"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+</div>
+
+{% endblock content %}
+{% block script %}
+<script>
+  // 登陆按钮点击事件
+  $('#d_login').click(function (){
+    username = $("#input_username").val();
+    password = $("#input_password").val();
+    $('#s_login').html('已登陆');
+    $('#s_login').attr("class", "btn btn-success btn-sm");
+    //$('#myModal-2').css("display", "none") ;
+    $('#myModal-2').modal("hide");
+    $(".modal-backdrop").remove();
+    $("body").removeClass('modal-open');
+  })
+
+
+  $('#do_exec').click(function () {
+    var mgmt_ip = $("#curr_ip").attr("value");
+    // 此处写函数获取下拉框选中的选项的value值
+    var display_cmd = $("#cmd_select").val();
+    // 用户密码通过弹出模态框 手动输入获取
+
+    //var username = username || "";
+    //var password = password || '';
+    
+    // 此处 swal 弹窗
+    if (typeof(username) == "undefined" || typeof(username) == "undefined"){
+      swal("执行失败", "先点击[执行]右侧的登陆", "error");
+    };
+    $.ajax({
+      // 朝 当前页面直接发post
+        url: '',
+        type:'POST',
+        data:{
+            "mgmt_ip": mgmt_ip,
+            "username": username,
+            "password": password,
+            "display_cmd": display_cmd,
+        },
+        success:function (data) {
+            if (data.status_code == "1111") {
+                //swal("登陆成功", "可选择下拉框其他命令查看配置", "success");
+                //window.location.reload();
+                //$("#mgmt_ip").val('');
+                $("#display_res").val(data.res)
+            }else{
+                //alert('添加失败');
+                //swal("登陆失败", "检查账号密码、网络连接……！", "error");
+                swal("查询失败", "检查账号密码、网络连接……！", "error");
+            }
+        }
+    })
+})
+// 单设备同步
+function device_sync(id){
+  swal({
+    title: "Are you sure?",
+    text: "This will take a few seconds.",
+    type: "warning",
+    showCancelButton: true,  // 是否显示取消按钮
+    confirmButtonClass: "btn-primary",  // 确认按钮的样式类
+    confirmButtonText: "Yes, do it.",  // 确认按钮文本
+    cancelButtonText: "Cancel.",  // 取消按钮文本
+    closeOnConfirm: false,  // 点击确认按钮不关闭弹框
+    showLoaderOnConfirm: true  // 显示正在删除的动画效果
+  },
+    function()
+    {
+      $.ajax({
+        url: "/device/sync/",
+        type: "post",
+        data: {"device_id": id}, //$btn指代当前被点击删除的按钮，$btn.attr指代当前删除按钮对应的属性，删除数据所对应的pk值
+        success: function (data) {
+          if (data.status_code === 1111) {
+              swal("Synchronized!", "Data has been Synchronized.", "success");
+              location.reload(); //同步成功后，重载当前页面
+              //ajax.reload();
+          } else {
+              swal("Error!", "An error occurred.", "error")
+          }
+        }
+      })
+    }
+    )
+}
+</script>
+{% endblock script %}

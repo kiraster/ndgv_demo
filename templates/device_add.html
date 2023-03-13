@@ -1,0 +1,226 @@
+{% extends 'home.html' %}
+{% block title %}
+<title>设备添加</title>
+{% endblock title %}
+{% block css-js %}
+<style>
+    {% comment %} 修改swal 标题别遮挡 {% endcomment %}
+    div.sweet-alert h2 {
+        padding-top: 18px;
+    }
+</style>
+{% endblock css-js %}
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+        <h3 class="panel-title">设备添加</h3>
+        </div>
+        <div class="panel-body">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-4">
+                        <p>设备IP地址：
+                            <input type="text" id="mgmt_ip" name="mgmt_ip" onblur="check_ip()" class="form-control" required placeholder="必填：输入设备IP地址">
+                            <span id="ip_tip_show" class="bg-warning"></span>
+                        </p>
+                        <p>设备别名：
+                            <input type="text" id="device_alias" name="device_alias" class="form-control" placeholder="可选：数据库中为设备别名选项">
+                        </p>
+                        <p>SNMP团体字(v2c/read-only)：
+                            <input  type="text" id="community_data" name="community_data" onblur="check_comm()" class="form-control" required placeholder="必填：输入设备snmp团体字，仅支持v2c">
+                            <span id="comm_tip_show" class="bg-warning"></span>
+                        </p>
+                        <p>设备位置：
+                            <input class="form-control" id="disabledInput" type="text" placeholder="信息机房" disabled>
+                        </p>
+                        <p class="text-muted">默认添加设备位置在信息机房，添加完成后在设备列表点击同步按钮，自动解析设备位置等信息</p>
+                        <p><button class="btn btn-primary" id="snmp_test">snmp测试</button>
+                        <button class="btn btn-primary" id="add_continue">继续添加</button>
+                        <button class="btn btn-primary" id="add_device">添加并返回</button>
+                        </p>
+                    </div>
+                    <div class="col-md-4">                        
+                    </div>
+                    <div class="col-md-4">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+{% block script %}
+
+<script>
+    // ip input 框 检查
+    function check_ip () {
+        var mgmt_ip = $("#mgmt_ip").val();
+        var community_data = $("#community_data").val();
+        $.ajax({
+            url:'/device/add/',
+            type:'POST',
+            data:{
+                "button": "check_ip",
+                "mgmt_ip": mgmt_ip,
+                "community_data": community_data,
+            },
+            success:function (data) {
+                if (data.status_code == "2222") {
+                    $('#ip_tip_show').html('请输入正确格式IP地址');
+                }else{
+                    $('#ip_tip_show').html('');
+                }
+            }
+        })
+    }
+    // 团体字 input 框 检查
+    function check_comm () {
+        var mgmt_ip = $("#mgmt_ip").val();
+        var community_data = $("#community_data").val();
+        $.ajax({
+            url:'/device/add/',
+            type:'POST',
+            data:{
+                "button": "check_comm",
+                "mgmt_ip": mgmt_ip,
+                "community_data": community_data,
+            },
+            success:function (data) {
+                if (data.status_code == "3333") {
+                    $('#comm_tip_show').html('未输入SNMP团体字');
+                }else{
+                    $('#comm_tip_show').html('');
+                }
+            }
+        })
+    }
+
+    // snmp 测试
+    $('#snmp_test').click(function () {
+        var mgmt_ip = $("#mgmt_ip").val();
+        var community_data = $("#community_data").val();
+        swal({
+            title: "Processing...",
+            //text: "Please wait",
+            //imageUrl: "https://www.superiorlawncareusa.com/wp-content/uploads/2020/05/loading-gif-png-5.gif",
+            imageUrl: "https://s2.loli.net/2022/10/05/YbRodfG5qHQAz6t.gif",
+            //imageUrl: "http://localhost:8000/static/img/loading.gif",
+            //icon: "/loading.gif",
+            button: false,
+            showConfirmButton: false,
+            closeOnClickOutside: false,
+            closeOnEsc: false
+          });
+        $.ajax({
+            url:'/device/add/',
+            type:'POST',
+            data:{
+                "button": "snmp_test",
+                "mgmt_ip": mgmt_ip,
+                "community_data": community_data,
+            },
+            success:function (data) {
+                if (data.status_code == "1111") {
+                    swal("snmp测试成功", "", "success");
+                }else if(data.status_code == "2222") {
+                    $('#ip_tip_show').html('请输入正确格式IP地址');
+                    swal("snmp测试失败", "IP地址格式不正确！", "error");
+                }else if(data.status_code == "3333") {
+                    $('#comm_tip_show').html('未输入SNMP团体字');
+                    swal("snmp测试失败", "未输入SNMP团体字！", "error");
+                }else{
+                    swal("snmp测试失败", "", "error");
+                }
+            }
+        })
+    })
+
+    // 继续 添加
+    $('#add_continue').click(function () {
+        var mgmt_ip = $("#mgmt_ip").val();
+        var device_alias = $("#device_alias").val();
+        var community_data = $("#community_data").val();
+        swal({
+            title: "Processing...",
+            //text: "Please wait",
+            //imageUrl: "https://www.superiorlawncareusa.com/wp-content/uploads/2020/05/loading-gif-png-5.gif",
+            imageUrl: "https://s2.loli.net/2022/10/05/YbRodfG5qHQAz6t.gif",
+            //icon: "/loading.gif",
+            button: false,
+            showConfirmButton: false,
+            closeOnClickOutside: false,
+            closeOnEsc: false
+          });
+        $.ajax({
+            url:'/device/add/',
+            type:'POST',
+            data:{
+                "button": "add_continue",
+                "mgmt_ip": mgmt_ip,
+                "device_alias": device_alias,
+                "community_data": community_data,
+            },
+            success:function (data) {
+                if (data.status_code == "1111") {
+                    swal("添加成功", "", "success");
+                    //window.location.reload();
+                    // 清空设备地址输入框，保留团体字输入框
+                    $("#mgmt_ip").val('');
+                }else if(data.status_code == "2222") {
+                    //alert('添加失败');
+                    $('#ip_tip_show').html('请输入正确格式IP地址');
+                    swal("snmp测试失败", "IP地址格式不正确！", "error");
+                }else if(data.status_code == "3333") {
+                    $('#comm_tip_show').html('未输入SNMP团体字');
+                    swal("snmp测试失败", "未输入SNMP团体字！", "error");
+                }else{
+                    swal("添加失败");
+                }
+            }
+        })
+    })
+
+
+    // 添加并返回设备列表页面
+    $('#add_device').click(function () {
+        var mgmt_ip = $("#mgmt_ip").val();
+        var device_alias = $("#device_alias").val();
+        var community_data = $("#community_data").val();
+        swal({
+            title: "Processing...",
+            //text: "Please wait",
+            //imageUrl: "https://www.superiorlawncareusa.com/wp-content/uploads/2020/05/loading-gif-png-5.gif",
+            imageUrl: "https://s2.loli.net/2022/10/05/YbRodfG5qHQAz6t.gif",
+            //icon: "/loading.gif",
+            button: false,
+            showConfirmButton: false,
+            closeOnClickOutside: false,
+            closeOnEsc: false
+          });
+        $.ajax({
+            url:'/device/add/',
+            type:'POST',
+            data:{
+                "button": "add_device",
+                "mgmt_ip": mgmt_ip,
+                "device_alias": device_alias,
+                "community_data": community_data,
+            },
+            success:function (data) {
+                if (data.status_code == "1111") {
+                    swal("添加成功", "", "success");
+                    window.location = '/device/data/'
+                }else if(data.status_code == "2222") {
+                    //alert('添加失败');
+                    $('#ip_tip_show').html('请输入正确格式IP地址');
+                    swal("snmp测试失败", "IP地址格式不正确！", "error");
+                }else if(data.status_code == "3333") {
+                    $('#comm_tip_show').html('未输入SNMP团体字');
+                    swal("snmp测试失败", "未输入SNMP团体字！", "error");
+                }else{
+                    swal("添加失败");
+                }
+            }
+        })
+    })
+</script>
+{% endblock script %}

@@ -1,0 +1,453 @@
+{% extends 'home.html' %}
+{% block title %}
+<title>设备管理</title>
+{% endblock title %}
+{% block css-js %}
+<!-- sweetalert -->
+<link rel="stylesheet" href="/static/sweetalert/sweetalert.css">
+<script src="/static/sweetalert/sweetalert.min.js"></script>
+<!-- DataTables-1.12.1 -->
+<link rel="stylesheet" type="text/css" href="/static/DataTables-1.12.1/css/jquery.dataTables.css"/>
+<link rel="stylesheet" type="text/css" href="/static/DataTables-1.12.1/css/dataTables.bootstrap.css"/>
+<script type="text/javascript" src="/static/DataTables-1.12.1/js/jquery.dataTables.js"></script>
+<script type="text/javascript" src="/static/DataTables-1.12.1/js/dataTables.bootstrap.js"></script>
+<!-- DataTables-1.12.1 Buttons-2.2.3 -->
+<link rel="stylesheet" type="text/css" href="/static/Buttons-2.2.3/css/buttons.dataTables.css"/>
+<script type="text/javascript" src="/static/Buttons-2.2.3/js/dataTables.buttons.js"></script>
+<script type="text/javascript" src="/static/Buttons-2.2.3/js/buttons.bootstrap.js"></script>
+<script type="text/javascript" src="/static/Buttons-2.2.3/js/buttons.html5.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+<script type="text/javascript" src="/static/JSZip-2.5.0/jszip.js"></script>
+<!-- hide dataTables column css -->
+<style>
+  {% comment %} 隐藏列，已使用自带API，可删 {% endcomment %}
+  .hide_column{
+      display: none;
+  }
+  {% comment %} <!-- 使CPU， 内存进度条 居中 --> {% endcomment %}
+  .progress {
+    margin-bottom: initial;
+  }
+  {% comment %} 修改swal 标题别遮挡 {% endcomment %}
+  div.sweet-alert h2 {
+      padding-top: 18px;
+  }
+</style>
+{% endblock css-js %}
+{% block content %}
+<div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title">设备列表</h3>
+    </div>
+    <div class="panel-body">
+      <!-- dataTables 表格 -->
+      <table id="device_list" class="display" style="width:100%">
+        <thead>
+          <tr>
+            {% comment %} <th></th> {% endcomment %}
+            <th>序号</th>
+            <th>设备名称</th>
+            <th>设备别名</th>
+            <th>管理IP</th>
+            <th>设备型号</th>
+            <th>设备类型</th>
+            <th>网络区域</th>
+            <th>设备位置</th>
+            <th>SNMP可达性</th>
+            <th>ICMP可达性</th>
+            <th>CPU利用率</th>
+            <th>内存利用率</th>
+            <th>序列号</th>
+            <th>运行时间</th>
+            <th>系统版本</th>
+            <th>电源状态</th>
+            <th>风扇状态</th>
+            <th>设备温度</th>
+            <th>SNMP团体字</th>
+            <th>添加时间</th>
+            <th>上一次同步时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+  <!-- Modal 编辑设备参数 -->
+  <div class="modal fade text-left" id="myModal-modify" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="myModalLabel">修改参数</h4>
+        </div>
+        <div class="modal-body">
+          <form class="form-horizontal">
+            <div class="form-group">
+              <label for="input_mgmt_ip" class="col-sm-3 control-label">设备IP地址：</label>
+              <div class="col-sm-9">
+                <input type="text" class="form-control" id="input_mgmt_ip" placeholder="此处默认灰色禁用状态" disabled>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="input_alias" class="col-sm-3 control-label">设备别名：</label>
+              <div class="col-sm-9">
+                <input type="text" class="form-control" id="input_alias" placeholder="可选：数据库中为设备别名选项">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="input_comm_data" class="col-sm-3 control-label">SNMP团体字：</label>
+              <div class="col-sm-9">
+                <input type="text" class="form-control" id="input_comm_data" placeholder="输入设备snmp团体字，仅支持v2c">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+          <button id="edit_confirm" type="button" class="btn btn-primary">确定</button>
+        </div>
+      </div>
+    </div>
+  </div><!-- Modal 编辑设备参数 -->
+
+{% endblock content %}
+{% block script %}
+<script>
+  // DataTable插件
+  $(document).ready(function() {
+    var nowTime=getFormatDate();
+
+    //获取当前时间，用于导出文件名一部分
+    function getFormatDate(){
+        var nowDate = new Date();
+        var year = nowDate.getFullYear();
+        var month = nowDate.getMonth() + 1 < 10 ? "0" + (nowDate.getMonth() + 1) : nowDate.getMonth() + 1;
+        var date = nowDate.getDate() < 10 ? "0" + nowDate.getDate() : nowDate.getDate();
+        var hour = nowDate.getHours()< 10 ? "0" + nowDate.getHours() : nowDate.getHours();
+        var minute = nowDate.getMinutes()< 10 ? "0" + nowDate.getMinutes() : nowDate.getMinutes();
+        //return year + "-" + month + "-" + date+"_"+hour+"-"+minute;
+        return year + "-" + month + "-" + date+"_"+hour+minute;
+    }
+         table = $('#device_list').DataTable({
+           //"paging": false, //关闭分页，自带的左上角每页显示数量和底部分页器会消失
+          pageLength: 512, //每页显示512条数据
+          bPaginate: false, //分页总开关 ， 左上角每页数量和右下角分页器小时
+          //select: true,
+          ajax: {
+            url: '/device/list/',
+            type: 'GET',
+            dataType: 'json',
+          },
+          dom: 'Bifrtip',
+          buttons: [
+          {
+            //sytle: 'bar',
+            text: '添加',
+            action: function( e, dt, node, config ){
+              // 跳转到设备添加页面
+              window.location.href = "/device/add/"
+            }
+          },
+          //{
+            //sytle: 'bar',
+           // text: '导入'
+          //},
+          {
+            extend: 'excel',
+            title: '数据导出-' + nowTime,
+            text: '导出',
+            filename: '设备列表导出_' + nowTime, //导出文件格式：设备列表导出2022-09-29_16-48.xlsx
+            exportOptions: {
+              columns:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20] //设置导出列的索引
+            }
+          },
+          {
+            text: '刷新',
+            action: function ( e, dt, node, config ) {
+                dt.ajax.reload();
+            }
+          }
+          ],
+          "columns": [
+          { "data": null },
+          { "data": "sysname" },
+          { "data": "device_alias" },
+          { "data": "mgmt_ip" },
+          { "data": "device_model" },
+          { "data": "device_type" },
+          { "data": "net_area" },
+          { "data": "device_location" },
+          { 
+            "data": "snmp_state",
+            render: function (data, type ,row){
+              if (data){
+                //var content = '<span class="glyphicon glyphicon-ok" aria-hidden="true"></span>';
+                var content = '<span class="label label-success">Normal</span>';
+                //return content;
+                return type === "display" || type === "filter" ?
+                content :
+                data
+              }else{
+                //var content = '<span class="glyphicon glyphicon-remove" aria-hidden="true"></span>';
+                var content = '<span class="label label-danger">Fail</span>';
+                //return content;
+                return type === "display" || type === "filter" ?
+                content :
+                data
+              }
+            }
+           },
+          { 
+            "data": "icmp_state",
+            render: function (data, type ,row){
+              if (data){
+                // 根据 data 值 渲染成 图标的样式
+                //var content = '<span class="glyphicon glyphicon-ok" aria-hidden="true">Normal</span>';
+                var content = '<span class="label label-success">Normal</span>';
+                //return content;
+                return type === "display" || type === "filter" ?
+                content : //显示的内容
+                data // 用于过滤
+              }else{
+                //var content = '<span class="glyphicon glyphicon-remove" aria-hidden="true">Fail</span>';
+                var content = '<span class="label label-danger">Fail</span>';
+                //return content;
+                return type === "display" || type === "filter" ?
+                content :
+                data
+              }
+            }
+           },
+          { 
+            "data": "device_cpu",
+            render: function (data, type ,row) {
+              if (data == null){
+                return '-/-'
+              }else{
+                var content = "";
+                // 渲染成 进度条 百分比的样式
+                content += '<div class="progress"><div class="progress-bar" role="progressbar" aria-valuenow="2" aria-valuemin="0" aria-valuemax="100" style="min-width: 3em; width: '+data+'%;">'+data+'%</div>';
+                return content;
+                //return data + '%';
+              }
+            }
+           },
+          { 
+            "data": "device_mem",
+            render: function (data, type ,row) {
+              if (data == null){
+                return '-/-'
+              }else{
+                var content = "";
+                // 渲染成 进度条 百分比的样式
+                content += '<div class="progress"><div class="progress-bar" role="progressbar" aria-valuenow="2" aria-valuemin="0" aria-valuemax="100" style="min-width: 3em; width: '+data+'%;">'+data+'%</div>';
+                return content;
+                //return data + '%';
+              }
+            }
+           },
+          //{ "data": "device_mem" },
+          { "data": "device_sn" },
+          { "data": "device_uptime" },
+          { "data": "device_version" },
+          { "data": "device_power_state" },
+          { "data": "device_fan_state" },
+          { 
+            "data": "device_temperature",
+            render: function (data, type ,row) {
+              if (data == null){
+                return '-/-'
+              }else{
+                return data + '℃';
+              }
+            }
+           },
+          //{ "data": "device_temperature" },
+          { "data": "community_data" },
+          { 
+            "data": "add_time",
+            // 渲染到html，由于 数据库存储的UTC时间，世界标准时间2016-08-9T10:01:54.123Z
+            // 转换函数-->> 以T分割，分两部分取值，指定第二部分的范围
+            render: function (data, type, row) {
+              var datetime_split = data.split('T');
+              var datetime_p1 = datetime_split[0];
+              var datetime_p2 = datetime_split[1].substring(0, 8);
+              return type === "display" || type === "filter" ?
+                datetime_p1 + " " + datetime_p2 : // 用于显示
+                data; // 用于被搜索
+            }
+          },
+          { 
+            "data": "last_sync_time",
+            // 渲染到html，由于 数据库存储的UTC时间，世界标准时间2016-08-9T10:01:54.123Z
+            // 转换函数-->> 以T分割，分两部分取值，指定第二部分的范围
+            render: function (data, type, row) {
+              var datetime_split = data.split('T');
+              var datetime_p1 = datetime_split[0];
+              var datetime_p2 = datetime_split[1].substring(0, 8);
+              return type === "display" || type === "filter" ?
+                datetime_p1 + " " + datetime_p2 : // 用于显示
+                data; // 用于被搜索
+            }
+          },
+          //{ "data": "add_time" }, // 直接显示UTC时间
+          { "data": "id", "render": function(data, type, full, meta) {
+            var content = "";
+              //content += '<a href="/device/detail/' + data + '" class="btn btn-primary btn-sm">详情</a>';
+              content += '<a href="/device/detail/' + data + '" class="btn btn-primary btn-sm" ata-toggle="tooltip" data-placement="top" title="查看详情"><span class="glyphicon glyphicon-th-list" aria-hidden="true"></span></a>';
+              //content += ' <a href="#" class="btn btn-primary btn-sm">同步</a>';
+              //content += ' <button class="btn btn-primary btn-sm" onClick="device_sync('+data+')">同步</button>';
+              content += ' <button id="device_modify" class="btn btn-primary btn-sm" ata-toggle="tooltip" data-placement="top" title="编辑设备参数" onClick="device_modify('+data+')" data-toggle="modal" data-target="#myModal-modify"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span></button>';
+              content += ' <button class="btn btn-primary btn-sm" ata-toggle="tooltip" data-placement="top" title="同步snmp" onClick="device_sync('+data+')"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></button>';
+              //content += ' <button class="btn btn-danger btn-sm" onClick="delconfirm('+data+')">删除</button>';
+              content += ' <button class="btn btn-danger btn-sm" ata-toggle="tooltip" data-placement="top" title="删除设备" onClick="delconfirm('+data+')"><span class="glyphicon glyphicon-trash" aria-hidden="true"></span></button>';
+              return content;
+          } },
+          ],
+          "columnDefs": [{
+            "searchable": false,
+            "orderable": false,
+            "targets": 0,
+            "width": "3%"
+          },{
+            "targets": -1,
+            "width": "136px"
+          },{
+            "visible": false,
+            "targets": [12,13,14,15,16,17,18,19,20]
+          //},{
+            //className: "hide_column",
+            //"targets": [12,13,14,15,16,17,18,19,20]
+          }],
+          "order": [[1, 'asc']]
+          });
+          table.on('order.dt search.dt', function(){
+            table.column(0, {
+              search: 'applied',
+              order: 'applied'
+            }).nodes().each(function(cell, i){
+              cell.innerHTML = i + 1;
+            });
+        }).draw();
+   });
+  // 删除确认弹窗
+  function delconfirm(id){
+    swal({
+      title: "Are you sure?",
+      text: "Your will not be able to recover that!",
+      type: "warning",
+      showCancelButton: true,  // 是否显示取消按钮
+      confirmButtonClass: "btn-danger",  // 确认按钮的样式类
+      confirmButtonText: "Yes, delete it!",  // 确认按钮文本
+      cancelButtonText: "Cancel",  // 取消按钮文本
+      closeOnConfirm: false,  // 点击确认按钮不关闭弹框
+      showLoaderOnConfirm: true  // 显示正在删除的动画效果
+    },
+      function()
+      {
+        $.ajax({
+          url: "/device/delete/",
+          type: "post",
+          data: {"device_id": id}, //$btn指代当前被点击删除的按钮，$btn.attr指代当前删除按钮对应的属性，删除数据所对应的pk值
+          success: function (data) {
+              if (data.status_code === 1111) {
+                  swal("Deleted!", "Data has been deleted.", "success");
+                  //location.reload(); //删除成功后，重载当前页面
+                  table.ajax.reload();
+                  //ajax.reload();
+              } else {
+                  swal("Error!", "An error occurred.", "error")
+              }
+          }
+        })
+      }
+      )
+  }
+  // 单设备同步
+  function device_sync(id){
+    swal({
+      title: "Are you sure?",
+      text: "This will take a few seconds.",
+      type: "warning",
+      showCancelButton: true,  // 是否显示取消按钮
+      confirmButtonClass: "btn-primary",  // 确认按钮的样式类
+      confirmButtonText: "Yes, do it.",  // 确认按钮文本
+      cancelButtonText: "Cancel.",  // 取消按钮文本
+      closeOnConfirm: false,  // 点击确认按钮不关闭弹框
+      showLoaderOnConfirm: true  // 显示正在删除的动画效果
+    },
+      function()
+      {
+        $.ajax({
+          url: "/device/sync/",
+          type: "post",
+          data: {"device_id": id}, //$btn指代当前被点击删除的按钮，$btn.attr指代当前删除按钮对应的属性，删除数据所对应的pk值
+          success: function (data) {
+            if (data.status_code === 1111) {
+                swal("Synchronized!", "Data has been Synchronized.", "success");
+                //swal.close();
+                // 3秒后自动关闭上面的弹窗
+                setTimeout(swal.close, 3000)
+                //location.reload(); //同步成功后，重载当前页面
+                table.ajax.reload();
+                //ajax.reload();
+            } else {
+                swal("Error!", "An error occurred.", "error")
+            }
+          }
+        })
+      }
+      )
+  }
+  // 编辑设备参数
+  function device_modify(id){
+    device_id = id
+    $.ajax({
+      url: "/device/list/",
+      type: "post",
+      data: {
+        "button_val": "device_modify",
+        "device_id": id,
+      },
+      success: function(data){
+        //var mgmt_ip = data.res;
+        //return mgmt_ip;
+        $("#input_mgmt_ip").attr("placeholder", data.res);
+      }
+    })
+  }
+
+  $('#edit_confirm').click(function () {
+    //var mgmt_ip = $("#intpu_mgmt_ip").val();
+    var device_alias = $("#input_alias").val();
+    var community_data = $("#input_comm_data").val();
+
+    $.ajax({
+        url:'/device/list/',
+        type:'POST',
+        data:{
+          "button_val": "edit_confirm",
+          "device_id": device_id,
+          "device_alias": device_alias,
+          "community_data": community_data,
+        },
+        success:function (data) {
+            if (data.status_code == "1111") {
+                swal("修改成功", "", "success");
+                //window.location = '/device/'
+                table.ajax.reload(); // ajax 刷新表格数据
+                $('#myModal-modify').modal('hide');
+                setTimeout(swal.close, 3000)
+            }else if(data.status_code == "3333") {
+              $('#comm_tip_show').html('未输入SNMP团体字');
+              swal("修改失败", "未输入SNMP团体字！", "error");
+            }else{
+                swal("修改失败");
+            }
+        }
+    })
+})
+
+</script>
+{% endblock script %}
