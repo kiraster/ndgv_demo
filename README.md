@@ -1,4 +1,4 @@
-一个基于`Django`开发的`SNMP`轮询Demo，可以对设备（代码内置了H3C OID部分规则）进行`SNMP`轮询，`icmp`连通性检测，并将结果写入数据库，前端页面读取数据库数据进行直观的展示。效果图可点击本页面导航栏的`Gallery`相册查看。
+一个基于`Django`编写的`SNMP`轮询Demo，可以对设备（代码内置了H3C OID部分规则）进行`SNMP`轮询，`icmp`连通性检测，并将结果写入数据库，前端页面读取数据库数据进行直观的展示。效果图可点击博客（https://kiraster.github.io/gallery/） 导航栏的`Gallery`相册查看。
 
 ## 缘由
 
