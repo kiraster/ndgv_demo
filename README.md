@@ -1,5 +1,7 @@
 一个基于`Django`编写的`SNMP`轮询Demo，可以对设备（代码内置了H3C OID部分规则）进行`SNMP`轮询，`icmp`连通性检测，并将结果写入数据库，前端页面读取数据库数据进行直观的展示。效果图可点击博客  https://kiraster.github.io/gallery/  导航栏的`Gallery`相册查看。
 
+在线Demo：https://aoxxuhojwftn.ap-northeast-1.clawcloudrun.com
+
 ## 缘由
 
 当初仅为了在项目实施中显示设备的上线情况和快速查找到需要变更配置的设备；后来越搞越多，像首页，设备导出，修改页，查看配置，计划任务，清空数据等功能并不是我当初有计划要制作的；最后及时刹车，许多脑中风暴的功能没有继续写，也没有继续添加功能的计划。
